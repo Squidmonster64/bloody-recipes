@@ -30,3 +30,7 @@ bloody-dave-recipes-pwa-build-3/
 └── tests/
     ├── test_data_logic.js
     └── test_static_files.py
+
+Build 5 additions:
+  cards/BD-0001.pdf ... cards/BD-0041.pdf
+  assets/hero/BD-0001.jpg ... assets/hero/BD-0041.jpg

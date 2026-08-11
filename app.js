@@ -231,13 +231,17 @@ function normaliseRecipe(raw, index = 0, archive = false, localPromoted = false)
   const explicitTotal = parseMinutes(firstDefined(raw.totalMinutes, raw.totalTime, raw.total_time, raw.readyInMinutes, raw.readyIn));
   const totalMinutes = explicitTotal || ((prepMinutes || cookMinutes) ? prepMinutes + cookMinutes : 0);
   const id = firstDefined(raw.id, raw.recipeId, raw.bdId, raw.archive_id, raw.slug, `${archive ? 'ARCHIVE' : 'BD-MISSING'}-${index + 1}`);
+  const stableId = String(id);
   const tags = asArray(firstDefined(raw.tags, raw.labels, raw.categories)).map(String);
   const subtitle = firstDefined(raw.subtitle, raw.description, raw.tagline, '').toString();
-  const heroImage = firstDefined(raw.heroImage, raw.image, raw.imageUrl, raw.hero_image, raw.image_path, '').toString();
+  const defaultHeroImage = !archive && /^BD-\d{4,}$/.test(stableId) ? `assets/hero/${stableId}.jpg` : '';
+  const defaultCardPdf = !archive && /^BD-\d{4,}$/.test(stableId) ? `cards/${stableId}.pdf` : '';
+  const heroImage = firstDefined(raw.heroImage, raw.image, raw.imageUrl, raw.hero_image, raw.image_path, defaultHeroImage).toString();
+  const cardPdf = firstDefined(raw.cardPdf, raw.card_pdf, raw.recipeCardPdf, defaultCardPdf).toString();
 
   return {
     raw,
-    id: String(id),
+    id: stableId,
     title: firstDefined(raw.title, raw.name, 'Untitled recipe').toString(),
     subtitle,
     source: firstDefined(raw.source, raw.provider, raw.origin, archive ? 'Archive' : "Bloody Dave's").toString(),
@@ -255,6 +259,7 @@ function normaliseRecipe(raw, index = 0, archive = false, localPromoted = false)
     rawTotalTime: firstDefined(raw.total_time, raw.totalTime, ''),
     favouriteDefault: bool(firstDefined(raw.favourite, raw.favorite, raw.isFavourite, raw.isFavorite, raw.favouriteDefault, raw.favoriteDefault), !archive),
     heroImage,
+    cardPdf,
     heroImageSubject: firstDefined(raw.hero_image_subject, raw.heroImageSubject, '').toString(),
     markdown: firstDefined(raw.reference_file, raw.markdown, raw.markdownFile, raw.recipeMarkdown, raw.md, '').toString(),
     ingredients,
@@ -597,6 +602,9 @@ async function renderDetail(recipe) {
   const method = recipe.method.length
     ? `<ol class="method">${recipe.method.map(step => `<li>${step.title ? `<strong>${escapeHtml(step.title)}</strong><br>` : ''}${escapeHtml(step.text)}</li>`).join('')}</ol>`
     : '<p class="empty">Structured method is not yet present in the supplied dataset.</p>';
+  const cardActions = recipe.cardPdf
+    ? `<div class="recipe-card-pdf-actions"><a class="button-link" href="${escapeHtml(recipe.cardPdf)}" target="_blank" rel="noopener">Open printable recipe card (PDF)</a><span class="subtle">2-page A4 landscape card</span></div>`
+    : '';
 
   $('#recipeDetail').innerHTML = `
     ${detailHero(recipe)}
@@ -616,6 +624,7 @@ async function renderDetail(recipe) {
         ${recipe.difficulty ? `<span>${escapeHtml(recipe.difficulty)}</span>` : ''}
       </div>
       ${tags}
+      ${cardActions}
       ${sourceNote}
       <div class="detail-grid">
         <section><h3>Ingredients</h3>${ingredientSection(recipe)}</section>

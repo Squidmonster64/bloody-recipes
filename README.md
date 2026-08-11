@@ -93,3 +93,13 @@ A static PWA cannot directly rewrite the deployed `recipes.json`. Archive promot
 ## Contact
 
 `info@bloodydaves.com`
+
+### Printable recipe cards
+
+Each curated recipe has a matching printable PDF at `cards/<BD-ID>.pdf`. Open any recipe in the app and choose **Open printable recipe card (PDF)**.
+
+
+## Build 6 branding
+- Canonical `assets/bloody_dave_logo.png` from the approved rebuilt recipe-card bundle is used in the app header.
+- PWA 192px and 512px install icons are generated from that same canonical logo.
+- Service-worker cache bumped to `bd-recipes-v6`.

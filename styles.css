@@ -15,7 +15,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .hidden{display:none!important}
 .subtle,.status,small{color:var(--muted)}
 .app-header{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;min-height:72px;padding:.8rem max(1rem,env(safe-area-inset-left));background:rgba(251,248,242,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(10px)}
-.brand-block{flex:1}
+.brand-lockup{display:flex;align-items:center;gap:.7rem;flex:1;min-width:0}.brand-logo{width:58px;height:58px;object-fit:contain;flex:0 0 auto;border-radius:.7rem}.brand-block{min-width:0}
 h1{margin:0;font-size:1.65rem}.eyebrow{margin:0;color:var(--red);font-size:.72rem;font-weight:900;letter-spacing:.18em}
 .tabs{position:sticky;top:72px;z-index:9;display:grid;grid-template-columns:repeat(3,1fr);gap:.35rem;padding:.55rem 1rem;background:var(--paper);border-bottom:1px solid var(--line)}
 .tabs button{background:transparent;color:var(--muted);padding:.65rem .3rem}.tabs button.active{background:var(--red);color:#fff}
@@ -32,8 +32,15 @@ h1{margin:0;font-size:1.65rem}.eyebrow{margin:0;color:var(--red);font-size:.72re
 .app-footer{display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;padding:2rem 1rem calc(2rem + env(safe-area-inset-bottom));color:var(--muted);font-size:.85rem}.app-footer a{color:var(--red)}
 dialog{width:min(560px,calc(100% - 2rem));border:0;border-radius:1rem;box-shadow:0 24px 80px rgba(0,0,0,.28);padding:0}dialog::backdrop{background:rgba(25,18,13,.55)}dialog form{padding:1.25rem}.dialog-heading{display:flex;justify-content:space-between;align-items:start}.dialog-heading h2{margin-top:0}
 @media(min-width:760px){.shopping-columns{grid-template-columns:repeat(3,1fr)}.view{padding:1.5rem}.toolbar{grid-template-columns:1fr auto;align-items:center}.detail-grid{grid-template-columns:minmax(260px,.8fr) minmax(380px,1.2fr)}.ingredient-columns{grid-template-columns:1fr 1fr}}
-@media(max-width:650px){.panel-heading,.detail-title-row,.archive-actions{align-items:stretch;flex-direction:column}.detail-favourite{align-self:flex-start}.shopping-actions{flex-direction:column}.subtitle{min-height:0}.toolbar-row{justify-content:stretch}.toolbar-row select{flex:1;min-width:130px}.archive-actions .button-row{margin-top:.5rem}.shopping-item{grid-template-columns:1fr}.status-toggle{justify-self:start}}
+@media(max-width:650px){.app-header{min-height:68px;padding-top:.45rem;padding-bottom:.45rem}.brand-lockup{gap:.5rem}.brand-logo{width:50px;height:50px}.brand-block h1{font-size:1.35rem}.brand-block .eyebrow{font-size:.62rem;letter-spacing:.14em}.tabs{top:68px}.panel-heading,.detail-title-row,.archive-actions{align-items:stretch;flex-direction:column}.detail-favourite{align-self:flex-start}.shopping-actions{flex-direction:column}.subtitle{min-height:0}.toolbar-row{justify-content:stretch}.toolbar-row select{flex:1;min-width:130px}.archive-actions .button-row{margin-top:.5rem}.shopping-item{grid-template-columns:1fr}.status-toggle{justify-self:start}}
 @media print{
   .app-header,.tabs,.toolbar,.shopping-actions,#selectedRecipes,#dataWarning,.app-footer,.shopping-columns section:nth-child(2),.shopping-columns section:nth-child(3){display:none!important}
   body{background:#fff}.view{display:none!important}#shoppingView{display:block!important}.shopping-columns{display:block}.shopping-columns section{border:0;padding:0}.panel{border:0;padding:0}.panel-heading button,.panel-heading p{display:none}.shopping-item{display:block;font-size:12pt}.status-toggle,.shopping-item small{display:none}.pantry-tag{border:1px solid #999;background:#fff;color:#000}
 }
+
+/* Build 5: printable recipe cards */
+.recipe-card-pdf-actions{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:1rem 0 1.25rem}
+.button-link{display:inline-block;border-radius:.7rem;background:var(--red);color:#fff!important;padding:.7rem 1rem;font-weight:750;text-decoration:none}
+.button-link:hover{filter:brightness(.96)}
+
+/* Build 6: canonical Bloody Dave branding */

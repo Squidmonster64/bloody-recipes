@@ -1,4 +1,4 @@
-const CACHE = 'bd-recipes-v4';
+const CACHE = 'bd-recipes-v6';
 const CORE = [
   "./",
   "index.html",
@@ -10,6 +10,7 @@ const CORE = [
   "assets/icons/icon-192.png",
   "assets/icons/icon-512.png",
   "assets/icons/placeholder.svg",
+  "assets/bloody_dave_logo.png",
   "Recipes/BD-0001.md",
   "Recipes/BD-0002.md",
   "Recipes/BD-0003.md",
