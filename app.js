@@ -6,7 +6,9 @@ const STORAGE = {
   favouriteOverrides: 'bd:favourite-overrides:v4',
   itemStatuses: 'bd:item-statuses:v4',
   legacyHave: 'bd:have:v2',
-  promoted: 'bd:promoted-recipes:v4'
+  promoted: 'bd:promoted-recipes:v4',
+  weekPlan: 'bd:week-plan:v1',
+  cookedAt: 'bd:cooked-at:v1'
 };
 
 const state = {
@@ -19,6 +21,8 @@ const state = {
   favouriteOverrides: readJson(STORAGE.favouriteOverrides, {}),
   itemStatuses: readJson(STORAGE.itemStatuses, {}),
   promotedRaw: readJson(STORAGE.promoted, []),
+  weekPlan: readJson(STORAGE.weekPlan, {}),
+  cookedAt: readJson(STORAGE.cookedAt, {}),
   currentView: 'library',
   lastListView: 'library',
   currentRecipe: null
@@ -68,6 +72,8 @@ function persist() {
   localStorage.setItem(STORAGE.favouriteOverrides, JSON.stringify(state.favouriteOverrides));
   localStorage.setItem(STORAGE.itemStatuses, JSON.stringify(state.itemStatuses));
   localStorage.setItem(STORAGE.promoted, JSON.stringify(state.promotedRaw));
+  localStorage.setItem(STORAGE.weekPlan, JSON.stringify(state.weekPlan));
+  localStorage.setItem(STORAGE.cookedAt, JSON.stringify(state.cookedAt));
 }
 
 function migrateLegacyHave() {
@@ -594,7 +600,7 @@ function ingredientSection(recipe) {
 
 async function renderDetail(recipe) {
   state.currentRecipe = recipe;
-  const favouriteButton = recipe.archive ? '' : `<button id="detailFavourite" class="detail-favourite">${isFavourite(recipe) ? '★ Favourite' : '☆ Favourite'}</button>`;
+  const favouriteButton = recipe.archive ? '' : `<div class="detail-actions"><button id="detailFavourite" class="detail-favourite">${isFavourite(recipe) ? '★ Favourite' : '☆ Favourite'}</button><button id="markCooked" class="secondary">Mark cooked today</button></div>`;
   const tags = recipe.tags.length ? `<div class="tag-row">${recipe.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : '';
   const sourceNote = recipe.archive
     ? '<div class="archive-note">Archive record. It remains separate from the curated Bloody Dave library until promoted.</div>'
@@ -640,6 +646,7 @@ async function renderDetail(recipe) {
   const hero = $('.detail-hero');
   if (hero) hero.onerror = () => { hero.replaceWith(htmlToElement(detailHero({ ...recipe, heroImage: '' }))); };
   $('#detailFavourite')?.addEventListener('click', () => toggleFavourite(recipe));
+  $('#markCooked')?.addEventListener('click', () => markCooked(recipe));
 
   if (recipe.markdown) {
     try {
@@ -776,10 +783,114 @@ function updateCount() {
   $('#shoppingCount').textContent = state.selected.size ? `(${state.selected.size})` : '';
 }
 
+function startOfWeek(date = new Date()) {
+  const value = new Date(date);
+  const day = value.getDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  value.setDate(value.getDate() + offset);
+  value.setHours(0, 0, 0, 0);
+  return value;
+}
+
+function dateKey(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function formatPlanDate(date) {
+  return new Intl.DateTimeFormat('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }).format(date);
+}
+
+function renderWeekPlan() {
+  const host = $('#weekPlan');
+  if (!host) return;
+  const weekStart = startOfWeek();
+  const selected = selectedRecipes();
+  const options = state.recipes.filter(recipe => recipe.structured || recipe.ingredients.length);
+  const fragment = document.createDocumentFragment();
+  for (let index = 0; index < 7; index += 1) {
+    const day = new Date(weekStart);
+    day.setDate(weekStart.getDate() + index);
+    const key = dateKey(day);
+    const wrap = document.createElement('label');
+    wrap.className = 'week-day';
+    const name = document.createElement('strong');
+    name.textContent = formatPlanDate(day);
+    const select = document.createElement('select');
+    select.setAttribute('aria-label', `Recipe for ${formatPlanDate(day)}`);
+    const emptyOption = new Option('No recipe planned', '');
+    select.add(emptyOption);
+    for (const recipe of options) {
+      const option = new Option(`${recipe.title}${recipe.totalMinutes ? ` · ${recipe.totalMinutes} min` : ''}`, recipe.id);
+      option.selected = state.weekPlan[key] === recipe.id;
+      select.add(option);
+    }
+    select.addEventListener('change', () => {
+      if (select.value) state.weekPlan[key] = select.value;
+      else delete state.weekPlan[key];
+      persist();
+      renderWeekPlan();
+    });
+    wrap.append(name, select);
+    const planned = options.find(recipe => recipe.id === state.weekPlan[key]);
+    const note = document.createElement('small');
+    note.textContent = planned && state.cookedAt[planned.id]
+      ? `Last cooked ${new Intl.DateTimeFormat('en-AU', { day: 'numeric', month: 'short' }).format(new Date(state.cookedAt[planned.id]))}`
+      : (selected.includes(planned) ? 'Selected for the combined shopping list' : 'Stored only on this device');
+    wrap.append(note);
+    fragment.append(wrap);
+  }
+  host.replaceChildren(fragment);
+}
+
+function addSelectedToWeek() {
+  const selected = selectedRecipes();
+  if (!selected.length) {
+    $('#weekPlanStatus').textContent = 'Select one or more recipes with the Shop control first.';
+    return;
+  }
+  const weekStart = startOfWeek();
+  const emptyDates = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(weekStart);
+    day.setDate(weekStart.getDate() + index);
+    return dateKey(day);
+  }).filter(key => !state.weekPlan[key]);
+  selected.slice(0, emptyDates.length).forEach((recipe, index) => { state.weekPlan[emptyDates[index]] = recipe.id; });
+  persist();
+  $('#weekPlanStatus').textContent = `${Math.min(selected.length, emptyDates.length)} recipe${Math.min(selected.length, emptyDates.length) === 1 ? '' : 's'} added to the first open days this week.`;
+  renderWeekPlan();
+}
+
+function exportWeekPlan() {
+  const recipes = state.recipes;
+  const cards = Object.entries(state.weekPlan).map(([date, id]) => {
+    const recipe = recipes.find(item => item.id === id);
+    return recipe ? { date, type: 'recipe', label: recipe.title, recipeId: recipe.id, url: `${location.origin}#recipe/${encodeURIComponent(recipe.id)}` } : null;
+  }).filter(Boolean);
+  downloadText('bloody-daves-week-plan.json', JSON.stringify({ schema: 'bloody-daves/suite-transfer/v1', kind: 'week-plan', source: 'recipes', createdAt: new Date().toISOString(), payload: { weekOf: dateKey(startOfWeek()), cards } }, null, 2), 'application/json;charset=utf-8');
+}
+
+function exportGetListTransfer() {
+  const items = mergedIngredients().filter(item => itemStatus(item) === 'need').map(item => ({
+    name: item.name,
+    quantity: item.quantities.join(' + '),
+    category: item.pantry ? 'pantry' : 'general',
+    sourceLabel: item.recipes.join(', ')
+  }));
+  downloadText('bloody-daves-recipes-to-get-list.json', JSON.stringify({ schema: 'bloody-daves/suite-transfer/v1', kind: 'shopping-list', source: 'recipes', createdAt: new Date().toISOString(), payload: { title: 'Recipe needs', items } }, null, 2), 'application/json;charset=utf-8');
+}
+
+function markCooked(recipe) {
+  state.cookedAt[recipe.id] = new Date().toISOString();
+  persist();
+  renderDetail(recipe);
+  renderWeekPlan();
+}
+
 function renderAll() {
   renderLibrary();
   renderArchive();
   renderShopping();
+  renderWeekPlan();
   updateCount();
 }
 
@@ -890,6 +1001,9 @@ $('#exportNeed').addEventListener('click', () => {
   const content = `Bloody Dave's — Need List\n\nRecipes:\n${selected.map(item => `- ${item}`).join('\n') || '- None selected'}\n\nNeed:\n${lines.join('\n') || 'Nothing needed.'}\n`;
   downloadText('bloody-daves-need-list.txt', content);
 });
+$('#exportGetListTransfer').addEventListener('click', exportGetListTransfer);
+$('#addSelectedToWeek').addEventListener('click', addSelectedToWeek);
+$('#exportWeek').addEventListener('click', exportWeekPlan);
 $('#promoteSelected').addEventListener('click', promoteSelectedArchive);
 $('#clearArchiveSelection').addEventListener('click', () => {
   state.archiveSelected.clear();
