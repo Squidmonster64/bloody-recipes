@@ -44,3 +44,6 @@ dialog{width:min(560px,calc(100% - 2rem));border:0;border-radius:1rem;box-shadow
 .button-link:hover{filter:brightness(.96)}
 
 /* Build 6: canonical Bloody Dave branding */
+
+/* Bloody Dave's public suite directory */
+.suite-directory{position:sticky;top:72px;z-index:9;display:flex;gap:.65rem;align-items:center;overflow-x:auto;padding:.48rem 1rem;background:#1d251f;color:#f6f1e6;font-size:.78rem;white-space:nowrap;scrollbar-width:none}.suite-directory::-webkit-scrollbar{display:none}.suite-directory span{color:#d8b47a;font-weight:900;letter-spacing:.06em}.suite-directory a{color:#f6f1e6;text-decoration:none;font-weight:750;padding:.2rem 0;border-bottom:2px solid transparent}.suite-directory a:hover,.suite-directory a.current{border-color:#d87b36;color:#fff}.tabs{top:112px}@media(max-width:650px){.suite-directory{top:68px}.tabs{top:108px}}
