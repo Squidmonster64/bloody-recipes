@@ -1,4 +1,4 @@
-const CACHE = 'bd-recipes-v8';
+const CACHE = 'bd-recipes-v9';
 const CORE = [
   "./",
   "index.html",
