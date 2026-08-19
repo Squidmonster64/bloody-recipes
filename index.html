@@ -26,12 +26,13 @@
   </div>
   <button id="installBtn" class="secondary">Install</button>
 </header>
-<nav class="suite-directory" aria-label="Bloody Dave's Suite"><span>Bloody Dave's Suite</span><a class="current" href="#">Recipes</a><a href="https://fragments.bloodydaves.com">Fragments</a><a href="https://timer.bloodydaves.com">Quiet Timer</a><a href="https://list.bloodydaves.com">Get List</a><a href="https://lift.bloodydaves.com">Lift Log</a></nav>
-<nav id="mainTabs" class="tabs" aria-label="Main sections">
-  <button data-view="library" class="active">Library</button>
-  <button data-view="archive" id="archiveTab">Archive</button>
-  <button data-view="shopping">Shopping <span id="shoppingCount"></span></button>
-</nav>
+<nav class="suite-directory" aria-label="Bloody Dave's Suite"><span>Bloody Dave's Suite</span><a class="current" href="#">Recipes</a><a href="https://fragments.hope-johnstone.com">Fragments</a><a href="https://timer.bloodydaves.com">Stolen Minutes</a><a href="https://list.bloodydaves.com">Get List</a><a href="https://lift.bloodydaves.com">Lift Log</a></nav>
+  <nav id="mainTabs" class="tabs" aria-label="Main sections">
+    <button data-view="library" class="active">Library</button>
+    <button data-view="saved">Saved</button>
+    <button data-view="archive" id="archiveTab">Archive</button>
+    <button data-view="shopping">Shopping <span id="shoppingCount"></span></button>
+  </nav>
 <main>
   <section id="libraryView" class="view active">
     <div class="toolbar">
@@ -70,6 +71,16 @@
       <div class="button-row"><button id="promoteSelected">Promote selected</button><button id="clearArchiveSelection" class="secondary">Clear</button></div>
     </div>
     <div id="archiveGrid" class="recipe-grid"></div>
+  </section>
+
+  <section id="savedView" class="view">
+    <section class="panel saved-recipes-panel" aria-labelledby="savedRecipeFormTitle">
+      <div class="panel-heading"><div><h2 id="savedRecipeFormTitle">Keep a recipe link</h2><p class="subtle">Links, tags and notes you want close at hand. They stay on this device.</p></div></div>
+      <form id="savedRecipeForm" class="saved-recipe-form"><input id="savedRecipeId" type="hidden"><label>Recipe name<input id="savedRecipeTitle" required maxlength="160" placeholder="What is it called?"></label><label>Source link<input id="savedRecipeUrl" type="url" maxlength="1000" placeholder="https://..."></label><label>Tags<input id="savedRecipeTags" maxlength="400" placeholder="For example: weeknight, pasta"></label><label class="saved-recipe-notes-field">Notes<textarea id="savedRecipeNotes" rows="4" maxlength="4000" placeholder="What caught your eye, or what would you change?"></textarea></label><div class="button-row"><button>Keep recipe</button><button id="cancelSavedRecipe" class="secondary" type="button">Clear</button></div></form>
+    </section>
+    <div class="toolbar saved-recipes-toolbar"><input id="savedRecipeSearch" type="search" placeholder="Search saved recipe links, tags or notes…" autocomplete="off"><div class="toolbar-row"><button id="exportSavedRecipes" class="secondary" type="button">Export saved recipes</button><label class="import-file secondary">Import Pocket Cookbook<input id="importSavedRecipes" type="file" accept="application/json,.json"></label></div></div>
+    <p id="savedRecipeStatus" class="status" aria-live="polite"></p>
+    <section id="savedRecipeGrid" class="recipe-grid" aria-label="Saved recipes"></section>
   </section>
 
   <section id="shoppingView" class="view">

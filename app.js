@@ -8,7 +8,8 @@ const STORAGE = {
   legacyHave: 'bd:have:v2',
   promoted: 'bd:promoted-recipes:v4',
   weekPlan: 'bd:week-plan:v1',
-  cookedAt: 'bd:cooked-at:v1'
+  cookedAt: 'bd:cooked-at:v1',
+  savedRecipes: 'bd:saved-recipes:v1'
 };
 
 const state = {
@@ -23,6 +24,7 @@ const state = {
   promotedRaw: readJson(STORAGE.promoted, []),
   weekPlan: readJson(STORAGE.weekPlan, {}),
   cookedAt: readJson(STORAGE.cookedAt, {}),
+  savedRecipes: readJson(STORAGE.savedRecipes, []),
   currentView: 'library',
   lastListView: 'library',
   currentRecipe: null
@@ -74,6 +76,7 @@ function persist() {
   localStorage.setItem(STORAGE.promoted, JSON.stringify(state.promotedRaw));
   localStorage.setItem(STORAGE.weekPlan, JSON.stringify(state.weekPlan));
   localStorage.setItem(STORAGE.cookedAt, JSON.stringify(state.cookedAt));
+  localStorage.setItem(STORAGE.savedRecipes, JSON.stringify(state.savedRecipes));
 }
 
 function migrateLegacyHave() {
@@ -81,6 +84,32 @@ function migrateLegacyHave() {
   const legacy = readJson(STORAGE.legacyHave, []);
   for (const key of legacy) state.itemStatuses[key] = 'have';
   if (legacy.length) persist();
+}
+
+function localId(prefix = 'local') {
+  return `${prefix}-${crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+}
+
+function normaliseSavedRecipe(raw, { preserveId = false } = {}) {
+  const now = new Date().toISOString();
+  return {
+    id: preserveId && raw?.id ? String(raw.id) : localId('saved'),
+    title: String(raw?.title || '').trim().slice(0, 160),
+    url: String(raw?.url || raw?.sourceUrl || '').trim().slice(0, 1000),
+    tags: asArray(raw?.tags).map(value => String(value).trim().slice(0, 60)).filter(Boolean).slice(0, 20),
+    notes: String(raw?.notes || '').trim().slice(0, 4000),
+    createdAt: raw?.createdAt || now,
+    updatedAt: raw?.updatedAt || now
+  };
+}
+
+function savedRecipeLink(url) {
+  try {
+    const parsed = new URL(url);
+    return /^https?:$/.test(parsed.protocol) ? parsed.href : '';
+  } catch {
+    return '';
+  }
 }
 
 function norm(value) {
@@ -401,6 +430,7 @@ function setView(name, { updateHash = true } = {}) {
   if (updateHash && !detail) history.pushState(null, '', `#${name}`);
   if (name === 'shopping') renderShopping();
   if (name === 'archive') renderArchive();
+  if (name === 'saved') renderSavedRecipes();
 }
 
 function routeFromHash() {
@@ -413,7 +443,7 @@ function routeFromHash() {
       return;
     }
   }
-  const view = ['library', 'archive', 'shopping'].includes(hash) ? hash : 'library';
+  const view = ['library', 'archive', 'shopping', 'saved'].includes(hash) ? hash : 'library';
   setView(view, { updateHash: false });
   renderAll();
 }
@@ -760,6 +790,106 @@ function empty(message) {
   return paragraph;
 }
 
+function resetSavedRecipeForm() {
+  $('#savedRecipeForm').reset();
+  $('#savedRecipeId').value = '';
+  $('#savedRecipeFormTitle').textContent = 'Keep a recipe link';
+}
+
+function renderSavedRecipes() {
+  const query = norm($('#savedRecipeSearch').value);
+  const rows = [...state.savedRecipes]
+    .filter(recipe => !query || norm([recipe.title, recipe.url, recipe.notes, ...(recipe.tags || [])].join(' ')).includes(query))
+    .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+  const grid = $('#savedRecipeGrid');
+  if (!rows.length) {
+    grid.replaceChildren(empty(query ? 'No saved recipes match that search.' : 'No saved recipes yet. Keep a useful link or import a Pocket Cookbook backup.'));
+    return;
+  }
+  const cards = rows.map(recipe => {
+    const card = document.createElement('article');
+    card.className = 'recipe-card saved-recipe-card';
+    const body = document.createElement('div');
+    body.className = 'card-body';
+    const source = document.createElement('span');
+    source.className = 'pill';
+    source.textContent = 'Saved recipe';
+    const title = document.createElement('h2');
+    title.className = 'title';
+    title.textContent = recipe.title;
+    body.append(source, title);
+    const href = savedRecipeLink(recipe.url);
+    if (href) {
+      const link = document.createElement('a');
+      link.className = 'saved-recipe-source';
+      link.href = href;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = 'Open source';
+      body.append(link);
+    } else if (recipe.url) {
+      const url = document.createElement('p');
+      url.className = 'subtle';
+      url.textContent = recipe.url;
+      body.append(url);
+    }
+    if (recipe.tags?.length) {
+      const tags = document.createElement('div');
+      tags.className = 'tag-row';
+      recipe.tags.forEach(tag => {
+        const chip = document.createElement('span');
+        chip.className = 'tag';
+        chip.textContent = tag;
+        tags.append(chip);
+      });
+      body.append(tags);
+    }
+    if (recipe.notes) {
+      const notes = document.createElement('p');
+      notes.className = 'saved-recipe-notes';
+      notes.textContent = recipe.notes;
+      body.append(notes);
+    }
+    const updated = document.createElement('small');
+    updated.textContent = `Updated ${new Date(recipe.updatedAt).toLocaleString('en-AU')}`;
+    body.append(updated);
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+    const edit = document.createElement('button');
+    edit.className = 'secondary';
+    edit.dataset.editSavedRecipe = recipe.id;
+    edit.textContent = 'Edit';
+    const remove = document.createElement('button');
+    remove.className = 'secondary';
+    remove.dataset.deleteSavedRecipe = recipe.id;
+    remove.textContent = 'Delete';
+    actions.append(edit, remove);
+    body.append(actions);
+    card.append(body);
+    return card;
+  });
+  grid.replaceChildren(...cards);
+}
+
+function exportSavedRecipes() {
+  downloadText('bloody-daves-saved-recipes.json', JSON.stringify({ schema: 'bloody-daves/pocket-cookbook/v1', exportedAt: new Date().toISOString(), recipes: state.savedRecipes }, null, 2), 'application/json;charset=utf-8');
+}
+
+async function importSavedRecipes(file) {
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (data?.schema !== 'bloody-daves/pocket-cookbook/v1' || !Array.isArray(data.recipes)) throw new Error('incompatible');
+    const additions = data.recipes.map(recipe => normaliseSavedRecipe(recipe)).filter(recipe => recipe.title);
+    state.savedRecipes.push(...additions);
+    persist();
+    $('#savedRecipeStatus').textContent = `${additions.length} saved recipe${additions.length === 1 ? '' : 's'} imported as editable local copies.`;
+    renderSavedRecipes();
+  } catch {
+    $('#savedRecipeStatus').textContent = 'That file is not a Pocket Cookbook backup.';
+  }
+}
+
 function renderShopping() {
   const selected = selectedRecipes();
   const missingStructured = selected.filter(recipe => !recipe.ingredients.length);
@@ -890,6 +1020,7 @@ function renderAll() {
   renderLibrary();
   renderArchive();
   renderShopping();
+  renderSavedRecipes();
   renderWeekPlan();
   updateCount();
 }
@@ -980,6 +1111,56 @@ function installHelp() {
 }
 
 $$('.tabs button').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
+$('#savedRecipeForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const title = $('#savedRecipeTitle').value.trim();
+  if (!title) return;
+  const existing = state.savedRecipes.find(recipe => recipe.id === $('#savedRecipeId').value);
+  const saved = normaliseSavedRecipe({
+    ...existing,
+    title,
+    url: $('#savedRecipeUrl').value,
+    tags: $('#savedRecipeTags').value.split(',').map(value => value.trim()).filter(Boolean),
+    notes: $('#savedRecipeNotes').value,
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }, { preserveId: Boolean(existing) });
+  state.savedRecipes = [...state.savedRecipes.filter(recipe => recipe.id !== saved.id), saved];
+  persist();
+  resetSavedRecipeForm();
+  $('#savedRecipeStatus').textContent = existing ? 'Saved recipe updated locally.' : 'Saved recipe kept locally.';
+  renderSavedRecipes();
+});
+$('#cancelSavedRecipe').addEventListener('click', resetSavedRecipeForm);
+$('#savedRecipeSearch').addEventListener('input', renderSavedRecipes);
+$('#exportSavedRecipes').addEventListener('click', exportSavedRecipes);
+$('#importSavedRecipes').addEventListener('change', async event => {
+  await importSavedRecipes(event.target.files?.[0]);
+  event.target.value = '';
+});
+$('#savedRecipeGrid').addEventListener('click', event => {
+  const editId = event.target.closest('[data-edit-saved-recipe]')?.dataset.editSavedRecipe;
+  const deleteId = event.target.closest('[data-delete-saved-recipe]')?.dataset.deleteSavedRecipe;
+  if (editId) {
+    const recipe = state.savedRecipes.find(item => item.id === editId);
+    if (!recipe) return;
+    $('#savedRecipeId').value = recipe.id;
+    $('#savedRecipeTitle').value = recipe.title;
+    $('#savedRecipeUrl').value = recipe.url;
+    $('#savedRecipeTags').value = (recipe.tags || []).join(', ');
+    $('#savedRecipeNotes').value = recipe.notes;
+    $('#savedRecipeFormTitle').textContent = 'Edit saved recipe';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  if (deleteId) {
+    const recipe = state.savedRecipes.find(item => item.id === deleteId);
+    if (!recipe || !confirm(`Delete “${recipe.title}”?`)) return;
+    state.savedRecipes = state.savedRecipes.filter(item => item.id !== deleteId);
+    persist();
+    $('#savedRecipeStatus').textContent = 'Saved recipe deleted locally.';
+    renderSavedRecipes();
+  }
+});
 ['librarySearch', 'favouritesOnly', 'timeFilter', 'sortOrder'].forEach(id => $(`#${id}`).addEventListener('input', renderLibrary));
 $('#archiveSearch').addEventListener('input', renderArchive);
 $('#clearSelection').addEventListener('click', () => {
