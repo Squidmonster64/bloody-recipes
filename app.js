@@ -407,7 +407,7 @@ function validateLoadedData(payload) {
     if (ids.has(recipe.id)) duplicateIds.add(recipe.id);
     ids.add(recipe.id);
   }
-  if (state.baseRecipes.length !== 41) warnings.push(`Loaded ${state.baseRecipes.length} curated recipes; the current live dataset is expected to contain 41.`);
+  if (state.baseRecipes.length < 41) warnings.push(`Loaded ${state.baseRecipes.length} curated recipes; expected at least the historical library of 41.`);
   if (payload && !Array.isArray(payload) && payload.recipe_count !== undefined && Number(payload.recipe_count) !== state.baseRecipes.length) {
     warnings.push(`recipes.json declares ${payload.recipe_count} recipes but contains ${state.baseRecipes.length}.`);
   }
@@ -552,7 +552,7 @@ function renderArchiveActions() {
 function renderArchive() {
   const query = norm($('#archiveSearch').value);
   if (!state.archiveAvailable) {
-    $('#archiveStatus').textContent = 'Archive not installed. The 41-recipe curated library works independently. Add Archive/index.json later and reload; no app rebuild is required.';
+    $('#archiveStatus').textContent = 'Archive not installed. The curated library works independently. Add Archive/index.json later and reload; no app rebuild is required. New recipes are published through Recipe Studio.';
     $('#archiveGrid').replaceChildren();
     $('#archiveActions').classList.add('hidden');
     return;
@@ -634,7 +634,7 @@ async function renderDetail(recipe) {
   const tags = recipe.tags.length ? `<div class="tag-row">${recipe.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : '';
   const sourceNote = recipe.archive
     ? '<div class="archive-note">Archive record. It remains separate from the curated Bloody Dave library until promoted.</div>'
-    : (!recipe.structured ? '<div class="data-note">This recipe is in the active 41-recipe library, but its ingredients, method and time have not yet been transcribed into the current structured dataset. The supplied Markdown reference is shown below.</div>' : '');
+    : (!recipe.structured ? '<div class="data-note">This recipe is in the curated library, but its ingredients, method and time have not yet been transcribed into the current structured dataset. The supplied Markdown reference is shown below.</div>' : '');
   const method = recipe.method.length
     ? `<ol class="method">${recipe.method.map(step => `<li>${step.title ? `<strong>${escapeHtml(step.title)}</strong><br>` : ''}${escapeHtml(step.text)}</li>`).join('')}</ol>`
     : '<p class="empty">Structured method is not yet present in the supplied dataset.</p>';

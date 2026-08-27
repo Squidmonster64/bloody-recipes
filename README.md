@@ -1,105 +1,68 @@
-# Bloody Dave's Recipes PWA — Build 4
+# Bloody Dave's Recipes PWA
 
-Production-ready static PWA for:
+Production static PWA:
 
 `https://recipes.bloodydaves.com`
 
-## Live starting library
+Canonical library lives in this GitHub repository. Cloudflare Pages deploys the public app from `main`.
 
-This build contains the supplied current dataset unchanged:
+## Library
 
-- 41 curated recipes in `recipes.json`
-- stable IDs `BD-0001` through `BD-0041`
-- all 41 supplied favourite values preserved as `true`
-- 41 supporting Markdown files in `Recipes/`
-- no dependency on `Archive/index.json`
+- Canonical data: `recipes.json`
+- Markdown references: `Recipes/BD-####.md`
+- Printable cards: `cards/BD-####.pdf`
+- Hero images: `assets/hero/BD-####.jpg`
+- Human index: `docs/Recipe Index.md` (generated)
 
-## Current dataset coverage
+`recipe_count` is always derived from `recipes.length`. The historical library of 41 recipes remains intact; new recipes are appended with the next permanent `BD-####` ID.
 
-The application does not invent missing recipe details.
+## Recipe Studio (add recipes)
 
-- All 41 recipes contain structured buy/pantry ingredient lists and methods in the live `recipes.json` payload.
-- All 41 can contribute ingredients to a combined shopping list.
-- Supporting Markdown references remain bundled for traceability and offline access.
+New recipes are created through the private Recipe Studio service:
 
-The app displays this limitation where it matters rather than silently filling gaps.
+`https://studio.recipes.bloodydaves.com`
 
-## Functions
+Flow:
 
-- Browse all curated recipes
-- Search title, ingredient, cuisine, source, protein, tag, ID and recorded cooking time
-- Filter and toggle favourites
-- Sort by ID, title, cooking time or source
-- Open hash-addressable recipe detail pages
-- Load the supporting Markdown reference for each recipe
-- Select multiple recipes
-- Merge duplicate ingredients and compatible quantities
-- Separate pantry items
-- Mark every item Have or Need
-- Pantry items default to Have but can be switched to Need
-- Print or export the Need list
-- Install on iPhone, iPad and Mac
-- Work offline after the first complete load
-- Load a future `Archive/index.json` without changing application code
-- Search the optional archive and prepare local promotions with the next sequential BD ID
+1. Paste recipe URL
+2. Optional natural-language changes ("remove the beef", "Australianise", "serve 4")
+3. Generate → review/edit → Publish
+4. Studio writes one atomic Git commit containing JSON, Markdown, hero JPG, PDF card and rebuilt index
+5. Cloudflare Pages redeploys; the recipe appears in the live PWA
+
+Secrets (`OPENAI_API_KEY`, `GITHUB_TOKEN`, session/password material) stay server-side. See `docs/RECIPE_STUDIO.md` and `generator/`.
+
+The old static promotion JSON download/merge workflow is retired for new recipes.
+
+## App functions
+
+- Browse curated recipes
+- Search title, ingredient, cuisine, source, protein, tag, ID and cooking time
+- Favourites, sorting and hash-addressable detail pages (`#recipe/BD-0001`)
+- Multi-select shopping list with Have/Need and pantry defaults
+- Weekly planning and suite hand-offs
+- Installable PWA with offline shell; recipe/card/hero assets use runtime caching
 
 ## Run locally
 
-A local web server is required because browsers do not allow PWA service workers from a file opened directly in Finder.
-
 ```bash
-cd bloody-dave-recipes-pwa-build-3
 python3 -m http.server 8080
 ```
 
-Open:
+Open `http://localhost:8080`.
 
-```text
-http://localhost:8080
-```
-
-## Validate before deployment
+## Validate
 
 ```bash
 python3 scripts/validate_data.py
+python3 scripts/rebuild_recipe_index.py
 node --check app.js
 node --check sw.js
 node tests/test_data_logic.js
 python3 tests/test_static_files.py
+python3 -m pytest generator/tests -q
 ```
-
-## Archive later
-
-Add the completed archive using this structure:
-
-```text
-Archive/
-├── index.json
-├── recipes/
-└── images/          # optional
-```
-
-Publish the added files and reload the PWA. No application-code rebuild is required.
-
-## Static promotion limitation
-
-A static PWA cannot directly rewrite the deployed `recipes.json`. Archive promotion therefore:
-
-1. assigns the next sequential `BD-` ID;
-2. stores the promotion locally on the current device;
-3. downloads `bloody-dave-promotions.json`;
-4. requires those records to be merged into the source `recipes.json` for permanent cross-device publication.
 
 ## Contact
 
 `info@bloodydaves.com`
-
-### Printable recipe cards
-
-Each curated recipe has a matching printable PDF at `cards/<BD-ID>.pdf`. Open any recipe in the app and choose **Open printable recipe card (PDF)**.
-
-
-## Build 6 branding
-- Canonical `assets/bloody_dave_logo.png` from the approved rebuilt recipe-card bundle is used in the app header.
-- PWA 192px and 512px install icons are generated from that same canonical logo.
-- Service-worker cache bumped to `bd-recipes-v6`.

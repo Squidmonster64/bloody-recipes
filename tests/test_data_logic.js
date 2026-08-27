@@ -31,9 +31,10 @@ const payload = JSON.parse(fs.readFileSync(path.join(root, 'recipes.json'), 'utf
 t.state.baseRecipes = payload.recipes.map((recipe, index) => t.normaliseRecipe(recipe, index, false, false));
 t.state.recipes = [...t.state.baseRecipes];
 
-assert.strictEqual(t.state.recipes.length, 41);
-assert.strictEqual(t.state.recipes.filter(t.isFavourite).length, 41);
-assert.strictEqual(t.state.recipes.filter(recipe => recipe.structured).length, 41);
+assert.ok(t.state.recipes.length >= 41);
+assert.strictEqual(t.state.recipes.filter(t.isFavourite).length, t.state.recipes.filter(recipe => recipe.favouriteDefault).length);
+assert.strictEqual(t.state.recipes.filter(recipe => recipe.structured).length, t.state.recipes.length);
+assert.ok(t.state.recipes.every(recipe => /^BD-\d{4,}$/.test(recipe.id)));
 
 const first = t.state.recipes[0];
 assert.strictEqual(first.totalMinutes, 30);
