@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=recipes-9">
+  <link rel="stylesheet" href="styles.css?v=recipes-10">
   <title>Bloody Dave's Recipes</title>
 </head>
 <body>
@@ -24,7 +24,10 @@
       <h1>Recipes</h1>
     </div>
   </div>
-  <button id="installBtn" class="secondary">Install</button>
+  <div class="header-actions">
+    <a id="studioLink" class="secondary studio-link" href="https://studio.recipes.bloodydaves.com" target="_blank" rel="noopener noreferrer">Recipe Studio</a>
+    <button id="installBtn" class="secondary">Install</button>
+  </div>
 </header>
 <nav class="suite-directory" aria-label="Bloody Dave's Suite"><span>Bloody Dave's Suite</span><a class="current" href="#">Recipes</a><a href="https://fragments.hope-johnstone.com">Fragments</a><a href="https://timer.bloodydaves.com">Stolen Minutes</a><a href="https://list.bloodydaves.com">Get List</a><a href="https://lift.bloodydaves.com">Lift Log</a></nav>
   <nav id="mainTabs" class="tabs" aria-label="Main sections">
@@ -67,8 +70,8 @@
     </div>
     <div id="archiveStatus" class="status" aria-live="polite"></div>
     <div id="archiveActions" class="panel archive-actions hidden">
-      <div><strong><span id="archiveSelectionCount">0</span> selected for promotion</strong><br><small>Promotions are stored on this device and exported for permanent addition to recipes.json.</small></div>
-      <div class="button-row"><button id="promoteSelected">Promote selected</button><button id="clearArchiveSelection" class="secondary">Clear</button></div>
+      <div><strong><span id="archiveSelectionCount">0</span> selected</strong><br><small>Archive promotion export remains available for legacy offline archives. Permanent new recipes should be published through <a href="https://studio.recipes.bloodydaves.com" target="_blank" rel="noopener noreferrer">Recipe Studio</a>.</small></div>
+      <div class="button-row"><button id="promoteSelected">Export promotion JSON</button><button id="clearArchiveSelection" class="secondary">Clear</button></div>
     </div>
     <div id="archiveGrid" class="recipe-grid"></div>
   </section>
