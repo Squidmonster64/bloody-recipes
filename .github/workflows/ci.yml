@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: generator/requirements.txt
+      - run: pip install -r generator/requirements.txt
+      - run: python3 scripts/validate_data.py
+      - run: python3 scripts/rebuild_recipe_index.py
+      - run: node --check app.js
+      - run: node --check sw.js
+      - run: node tests/test_data_logic.js
+      - run: python3 tests/test_static_files.py
+      - run: node --test suite-nav.test.mjs ui-contract.test.mjs
+      - run: python3 -m pytest generator/tests -q
