@@ -60,6 +60,7 @@ node --check app.js
 node --check sw.js
 node tests/test_data_logic.js
 python3 tests/test_static_files.py
+node --test suite-nav.test.mjs ui-contract.test.mjs
 python3 -m pytest generator/tests -q
 ```
 
