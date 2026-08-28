@@ -20,16 +20,28 @@ jobs:
           grep -Eiq "Bloody Dave|Recipes|Recipe" /tmp/recipes.html
           echo "PUBLIC_RECIPES_OK"
 
-      - name: Verify Recipe Studio URL reaches the service
+      - name: Diagnose Recipe Studio TLS and route
         shell: bash
         run: |
           set -euo pipefail
-          code=$(curl --silent --show-error --location --max-time 30 \
+          echo "CNAME:"
+          dig +short CNAME studio.recipes.bloodydaves.com || true
+          echo "A/AAAA:"
+          dig +short A studio.recipes.bloodydaves.com || true
+          dig +short AAAA studio.recipes.bloodydaves.com || true
+          echo "CERTIFICATE:"
+          timeout 20 openssl s_client -connect studio.recipes.bloodydaves.com:443 -servername studio.recipes.bloodydaves.com </dev/null 2>/dev/null \
+            | openssl x509 -noout -subject -issuer -ext subjectAltName || true
+          strict_code=$(curl --silent --show-error --location --max-time 30 \
+            --output /tmp/studio-strict.html --write-out '%{http_code}' \
+            https://studio.recipes.bloodydaves.com/ || true)
+          echo "strict_http=${strict_code:-curl-failed}"
+          insecure_code=$(curl --insecure --silent --show-error --location --max-time 30 \
             --output /tmp/studio.html --write-out '%{http_code}' \
-            https://studio.recipes.bloodydaves.com/)
-          echo "studio_http=$code"
-          case "$code" in
-            200|302|401|403) ;;
-            *) echo "Recipe Studio unreachable"; exit 1 ;;
-          esac
+            https://studio.recipes.bloodydaves.com/ || true)
+          echo "insecure_http=${insecure_code:-curl-failed}"
+          if [ "$strict_code" != "200" ] && [ "$strict_code" != "302" ] && [ "$strict_code" != "401" ] && [ "$strict_code" != "403" ]; then
+            echo "RECIPE_STUDIO_TLS_OR_ROUTE_BROKEN"
+            exit 1
+          fi
           echo "RECIPE_STUDIO_ROUTE_OK"
