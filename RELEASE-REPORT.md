@@ -8,7 +8,12 @@
 
 ## Head SHA
 
-`5914a938f052c0298ee49df1f6c11377f5e7c7cf`
+Branch tip is the latest commit on `cursor/suite-nav-control-2e8b` (also copied into the PR body after push). Implementation commits on this lane:
+
+- `61a40fb` Control lockup rebased onto `main`
+- `16a0f3b` Dark compact public suite UI
+- `4c44ac3` GitHub Actions verify workflow
+- `12719bf` Mobile week-strip compacting + `bd-recipes-v12`
 
 ## What landed
 
