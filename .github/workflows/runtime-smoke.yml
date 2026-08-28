@@ -29,6 +29,12 @@ jobs:
           echo "A/AAAA:"
           dig +short A studio.recipes.bloodydaves.com || true
           dig +short AAAA studio.recipes.bloodydaves.com || true
+          echo "CAA studio:"
+          dig +short CAA studio.recipes.bloodydaves.com || true
+          echo "CAA recipes:"
+          dig +short CAA recipes.bloodydaves.com || true
+          echo "CAA apex:"
+          dig +short CAA bloodydaves.com || true
           echo "CERTIFICATE:"
           timeout 20 openssl s_client -connect studio.recipes.bloodydaves.com:443 -servername studio.recipes.bloodydaves.com </dev/null 2>/dev/null \
             | openssl x509 -noout -subject -issuer -ext subjectAltName || true
