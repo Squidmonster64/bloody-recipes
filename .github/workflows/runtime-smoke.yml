@@ -1,0 +1,35 @@
+name: Recipes runtime smoke
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify public Recipes URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 30 \
+            -o /tmp/recipes.html https://recipes.bloodydaves.com/
+          grep -Eiq "Bloody Dave|Recipes|Recipe" /tmp/recipes.html
+          echo "PUBLIC_RECIPES_OK"
+
+      - name: Verify Recipe Studio URL reaches the service
+        shell: bash
+        run: |
+          set -euo pipefail
+          code=$(curl --silent --show-error --location --max-time 30 \
+            --output /tmp/studio.html --write-out '%{http_code}' \
+            https://studio.recipes.bloodydaves.com/)
+          echo "studio_http=$code"
+          case "$code" in
+            200|302|401|403) ;;
+            *) echo "Recipe Studio unreachable"; exit 1 ;;
+          esac
+          echo "RECIPE_STUDIO_ROUTE_OK"
