@@ -8,7 +8,7 @@
 
 ## Head SHA
 
-Fill after the recovery commits land; also in the PR body.
+`5914a938f052c0298ee49df1f6c11377f5e7c7cf`
 
 ## What landed
 
@@ -59,7 +59,7 @@ python3 -m pytest generator/tests -q
   10 passed in 0.69s
 ```
 
-Generator tests were executed to confirm they still pass. No generator test or backend files were changed.
+Generator tests were executed to confirm they still pass. No generator test or backend files were changed. GitHub Actions workflow `.github/workflows/ci.yml` (added on this branch) runs the same public + generator suite.
 
 ## Viewport contract (measured, overflowX = 0)
 
