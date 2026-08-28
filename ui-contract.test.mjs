@@ -74,7 +74,7 @@ test('public catalogue, cards, heroes and PWA cache remain intact', () => {
     assert.equal(existsSync(new URL(`./assets/hero/${recipe.id}.jpg`, root)), true, recipe.id);
     assert.equal(existsSync(new URL(`./cards/${recipe.id}.pdf`, root)), true, recipe.id);
   }
-  assert.match(sw, /const CACHE = 'bd-recipes-v11'/);
+  assert.match(sw, /const CACHE = 'bd-recipes-v12'/);
   assert.match(sw, /assets\/bloody_dave_logo\.png/);
   assert.match(sw, /recipes\.json/);
   assert.match(html, /id="libraryView"/);

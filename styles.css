@@ -203,6 +203,12 @@ dialog form{padding:1rem}
   .status-toggle{justify-self:start}
   .card-actions .open{display:none}
   .detail-hero,.detail-hero-placeholder{max-height:140px;height:140px;min-height:140px}
+  .meal-plan .subtle,.week-day small{display:none}
+  .meal-plan{padding:.5rem .55rem}
+  .meal-plan .panel-heading{flex-direction:row;align-items:center;gap:.4rem}
+  .meal-plan .button-row{margin-top:0}
+  .week-plan-grid{grid-template-columns:repeat(7,minmax(6.4rem,1fr))}
+  .week-day{padding:.32rem .4rem}
 }
 
 @media(max-height:820px){
