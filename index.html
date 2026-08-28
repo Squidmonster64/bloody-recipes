@@ -3,39 +3,48 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#8f1d18">
+  <meta name="theme-color" content="#121714">
+  <meta name="color-scheme" content="dark">
   <meta name="description" content="Bloody Dave's installable offline recipe library and combined shopping list">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Bloody Dave's">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=recipes-10">
+  <link rel="stylesheet" href="styles.css?v=recipes-11">
   <title>Bloody Dave's Recipes</title>
 </head>
 <body>
 <header class="app-header">
   <button id="backBtn" class="icon-button hidden" aria-label="Back to recipes">←</button>
-  <div class="brand-lockup">
+  <a class="brand-lockup family-control" href="https://control.bloodydaves.com">
     <img class="brand-logo" src="assets/bloody_dave_logo.png" alt="Bloody Dave's">
     <div class="brand-block">
       <p class="eyebrow">BLOODY DAVE'S</p>
       <h1>Recipes</h1>
     </div>
-  </div>
+  </a>
   <div class="header-actions">
-    <a id="studioLink" class="secondary studio-link" href="https://studio.recipes.bloodydaves.com" target="_blank" rel="noopener noreferrer">Recipe Studio</a>
+    <a id="studioLink" class="secondary studio-link" href="https://studio.recipes.bloodydaves.com" target="_blank" rel="noopener noreferrer">Studio</a>
     <button id="installBtn" class="secondary">Install</button>
   </div>
 </header>
-<nav class="suite-directory" aria-label="Bloody Dave's Suite"><span>Bloody Dave's Suite</span><a class="current" href="#">Recipes</a><a href="https://fragments.hope-johnstone.com">Fragments</a><a href="https://timer.bloodydaves.com">Stolen Minutes</a><a href="https://list.bloodydaves.com">Get List</a><a href="https://lift.bloodydaves.com">Lift Log</a></nav>
-  <nav id="mainTabs" class="tabs" aria-label="Main sections">
-    <button data-view="library" class="active">Library</button>
-    <button data-view="saved">Saved</button>
-    <button data-view="archive" id="archiveTab">Archive</button>
-    <button data-view="shopping">Shopping <span id="shoppingCount"></span></button>
-  </nav>
+<nav class="suite-directory" aria-label="Bloody Dave's Suite">
+  <span>Suite</span>
+  <a href="https://control.bloodydaves.com">Control</a>
+  <a class="current" href="#library">Recipes</a>
+  <a href="https://fragments.hope-johnstone.com">Fragments</a>
+  <a href="https://timer.bloodydaves.com">Stolen Minutes</a>
+  <a href="https://list.bloodydaves.com">Get List</a>
+  <a href="https://lift.bloodydaves.com">Lift Log</a>
+</nav>
+<nav id="mainTabs" class="tabs product-nav" aria-label="Main sections">
+  <button data-view="library" class="active">Library</button>
+  <button data-view="saved">Saved</button>
+  <button data-view="archive" id="archiveTab">Archive</button>
+  <button data-view="shopping">Shopping <span id="shoppingCount"></span></button>
+</nav>
 <main>
   <section id="libraryView" class="view active">
     <div class="toolbar">
@@ -59,7 +68,20 @@
       </div>
     </div>
     <div id="dataWarning" class="warning hidden"></div>
-    <section class="panel meal-plan" aria-labelledby="mealPlanTitle"><div class="panel-heading"><div><h2 id="mealPlanTitle">This week</h2><p class="subtle">Plan locally. Selected recipes can fill the first open days.</p></div><div class="button-row"><button id="addSelectedToWeek" class="secondary">Plan selected</button><button id="exportWeek" class="secondary">Export week</button></div></div><p id="weekPlanStatus" class="status" aria-live="polite"></p><div id="weekPlan" class="week-plan-grid"></div></section>
+    <section class="panel meal-plan" aria-labelledby="mealPlanTitle">
+      <div class="panel-heading">
+        <div>
+          <h2 id="mealPlanTitle">This week</h2>
+          <p class="subtle">Local plan. Shop-selected recipes fill open days.</p>
+        </div>
+        <div class="button-row">
+          <button id="addSelectedToWeek" class="secondary">Plan selected</button>
+          <button id="exportWeek" class="secondary">Export week</button>
+        </div>
+      </div>
+      <p id="weekPlanStatus" class="status" aria-live="polite"></p>
+      <div id="weekPlan" class="week-plan-grid"></div>
+    </section>
     <div id="libraryStatus" class="status" aria-live="polite"></div>
     <div id="libraryGrid" class="recipe-grid"></div>
   </section>
@@ -137,6 +159,6 @@
     </div>
   </article>
 </template>
-<script type="module" src="app.js?v=recipes-9"></script>
+<script type="module" src="app.js?v=recipes-11"></script>
 </body>
 </html>
