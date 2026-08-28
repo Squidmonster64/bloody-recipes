@@ -20,19 +20,36 @@ jobs:
           grep -Eiq "Bloody Dave|Recipes|Recipe" /tmp/recipes.html
           echo "PUBLIC_RECIPES_OK"
 
+      - name: Inspect Railway domain status if repository token exists
+        shell: bash
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${RAILWAY_API_TOKEN:-}" ]; then
+            echo "RAILWAY_CI_TOKEN_PRESENT=api"
+          elif [ -n "${RAILWAY_TOKEN:-}" ]; then
+            echo "RAILWAY_CI_TOKEN_PRESENT=project"
+          else
+            echo "RAILWAY_CI_TOKEN_PRESENT=no"
+            exit 0
+          fi
+          npx -y @railway/cli@latest domain status studio.recipes.bloodydaves.com \
+            --project cd49c876-a4fc-4353-b012-0a039dfd4a2d \
+            --environment production --service recipe-studio --json || true
+
       - name: Diagnose Recipe Studio TLS and route
         shell: bash
         run: |
           set -euo pipefail
           echo "CNAME:"
           dig +short CNAME studio.recipes.bloodydaves.com || true
+          echo "TXT hostname:"
+          dig +short TXT studio.recipes.bloodydaves.com || true
           echo "A/AAAA:"
           dig +short A studio.recipes.bloodydaves.com || true
           dig +short AAAA studio.recipes.bloodydaves.com || true
-          echo "CAA studio:"
-          dig +short CAA studio.recipes.bloodydaves.com || true
-          echo "CAA recipes:"
-          dig +short CAA recipes.bloodydaves.com || true
           echo "CAA apex:"
           dig +short CAA bloodydaves.com || true
           echo "CERTIFICATE:"
