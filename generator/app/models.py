@@ -1,6 +1,7 @@
 """Pydantic schemas for Recipe Studio drafts and published records."""
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal
@@ -90,10 +91,23 @@ class SourceFacts(BaseModel):
 
 
 class CreateJobRequest(BaseModel):
-    url: str = Field(min_length=8, max_length=2000)
+    url: str = Field(default="", max_length=2000)
     instructions: str = Field(default="", max_length=4000)
     create_variant: bool = False
     pasted_source: str = Field(default="", max_length=100_000)
+
+    @model_validator(mode="after")
+    def require_url_or_pasted_source(self) -> "CreateJobRequest":
+        self.url = self.url.strip()
+        self.pasted_source = self.pasted_source.strip()
+        if self.url and len(self.url) < 8:
+            raise ValueError("Recipe URL must be at least 8 characters")
+        if not self.url and not self.pasted_source:
+            raise ValueError("Enter a recipe URL or paste recipe text")
+        if not self.url:
+            digest = hashlib.sha256(self.pasted_source.encode("utf-8")).hexdigest()
+            self.url = f"pasted://sha256/{digest}"
+        return self
 
 
 class PatchRecipeRequest(BaseModel):
