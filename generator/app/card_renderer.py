@@ -70,6 +70,48 @@ def _draw_paragraph(c: canvas.Canvas, text: str, x: float, y: float, width: floa
     return y, overflow
 
 
+def _ingredient_strip_text(
+    c: canvas.Canvas,
+    recipe: RecipeDraft,
+    *,
+    font: str,
+    size: float,
+    width: float,
+    max_lines: int = 2,
+) -> str:
+    """Return a compact page-one summary that is guaranteed to fit.
+
+    Page two carries the complete BUY/PANTRY lists, so the page-one strip should
+    progressively shorten rather than fail the entire recipe on long ingredient
+    names.
+    """
+
+    def build(buy_count: int, pantry_count: int) -> str:
+        parts: list[str] = []
+        if recipe.buy:
+            parts.append("BUY: " + " · ".join(recipe.buy[:buy_count]))
+        if recipe.pantry and pantry_count:
+            parts.append("PANTRY: " + " · ".join(recipe.pantry[:pantry_count]))
+        return "   |   ".join(parts)
+
+    for buy_count, pantry_count in (
+        (6, 4),
+        (5, 3),
+        (4, 2),
+        (3, 2),
+        (3, 1),
+        (2, 1),
+        (1, 1),
+    ):
+        text = build(buy_count, pantry_count)
+        if text and len(_wrap(c, text, font, size, width)) <= max_lines:
+            return text
+
+    # The full lists remain on page two; never make a decorative summary block
+    # a hard QA failure.
+    return "Full BUY + PANTRY ingredient list on page 2."
+
+
 def render_card(
     recipe: RecipeDraft,
     *,
@@ -147,15 +189,20 @@ def render_card(
         c.setFillColorRGB(0.95, 0.9, 0.85)
         c.rect(18 * mm, hero_bottom, width - 36 * mm, hero_height, fill=1, stroke=0)
 
-    # ingredient strip
+    # Ingredient strip: this is a compact summary only. The full list is on page 2,
+    # so progressively shorten it rather than failing QA on long ingredient names.
     c.setFillColorRGB(*WHITE)
     c.roundRect(18 * mm, 14 * mm, width - 36 * mm, 24 * mm, 6, fill=1, stroke=0)
-    strip = "BUY: " + " · ".join(recipe.buy[:6])
-    if recipe.pantry:
-        strip += "   |   PANTRY: " + " · ".join(recipe.pantry[:4])
-    _, over = _draw_paragraph(c, strip, 22 * mm, 28 * mm, width - 44 * mm, regular, 8, 10, max_lines=2)
-    if over:
-        overflows.append("ingredient_strip")
+    strip_width = width - 44 * mm
+    strip = _ingredient_strip_text(
+        c,
+        recipe,
+        font=regular,
+        size=8,
+        width=strip_width,
+        max_lines=2,
+    )
+    _draw_paragraph(c, strip, 22 * mm, 28 * mm, strip_width, regular, 8, 10, max_lines=2)
 
     c.showPage()
 
