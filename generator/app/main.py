@@ -7,6 +7,7 @@ from collections import defaultdict, deque
 from pathlib import Path
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Form, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -26,6 +27,16 @@ from .models import CreateJobRequest, PatchRecipeRequest
 app = FastAPI(title="Bloody Dave Recipe Studio", version="1.0.0")
 TEMPLATES = Path(__file__).parent / "templates"
 _rate_buckets: dict[str, deque[float]] = defaultdict(deque)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    messages: list[str] = []
+    for error in exc.errors():
+        loc = ".".join(str(part) for part in error.get("loc", ()) if part not in {"body"})
+        msg = str(error.get("msg") or "Invalid value")
+        messages.append(f"{loc}: {msg}" if loc else msg)
+    return JSONResponse(status_code=422, content={"detail": "; ".join(messages) or "Invalid request"})
 
 
 def _rate_limit(request: Request) -> None:
