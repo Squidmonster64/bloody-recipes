@@ -70,6 +70,46 @@ def _draw_paragraph(c: canvas.Canvas, text: str, x: float, y: float, width: floa
     return y, overflow
 
 
+def _fit_lines(
+    c: canvas.Canvas,
+    text: str,
+    font: str,
+    width: float,
+    sizes: tuple[float, ...],
+    max_lines: int,
+) -> tuple[list[str], float, bool]:
+    """Find the largest font size that keeps all text inside max_lines."""
+    for size in sizes:
+        lines = _wrap(c, text, font, size, width)
+        if len(lines) <= max_lines:
+            return lines, size, False
+    size = sizes[-1]
+    return _wrap(c, text, font, size, width), size, True
+
+
+def _draw_fitted_paragraph(
+    c: canvas.Canvas,
+    text: str,
+    x: float,
+    y: float,
+    width: float,
+    font: str,
+    sizes: tuple[float, ...],
+    max_lines: int,
+    leading_factor: float = 1.25,
+) -> tuple[float, bool]:
+    lines, size, overflow = _fit_lines(c, text, font, width, sizes, max_lines)
+    if overflow:
+        lines = lines[:max_lines]
+    c.setFont(font, size)
+    c.setFillColorRGB(*DARK)
+    leading = size * leading_factor
+    for line in lines:
+        c.drawString(x, y, line)
+        y -= leading
+    return y, overflow
+
+
 def _ingredient_strip_text(
     c: canvas.Canvas,
     recipe: RecipeDraft,
@@ -112,6 +152,25 @@ def _ingredient_strip_text(
     return "Full BUY + PANTRY ingredient list on page 2."
 
 
+def _ingredient_list_size(
+    c: canvas.Canvas,
+    recipe: RecipeDraft,
+    *,
+    font: str,
+    width: float,
+    available_height: float,
+) -> tuple[float, float, bool]:
+    """Choose one readable font size that keeps the complete ingredient lists visible."""
+    for size in (9.0, 8.5, 8.0, 7.5, 7.0, 6.5):
+        leading = size * 1.25
+        line_count = sum(len(_wrap(c, f"• {item}", font, size, width)) for item in recipe.buy)
+        line_count += sum(len(_wrap(c, f"• {item}", font, size, width)) for item in recipe.pantry)
+        heading_space = 8 * mm if recipe.pantry else 0
+        if line_count * leading + heading_space <= available_height:
+            return size, leading, False
+    return 6.5, 6.5 * 1.25, True
+
+
 def render_card(
     recipe: RecipeDraft,
     *,
@@ -138,17 +197,36 @@ def render_card(
     c.setFont(bold, 11)
     c.drawString(45 * mm, height - 16 * mm, "BLOODY DAVE'S RECIPES")
     c.setFillColorRGB(*DARK)
-    title_lines = _wrap(c, recipe.title, bold, 22, width - 40 * mm)
-    if len(title_lines) > 3:
+
+    title_lines, title_size, title_overflow = _fit_lines(
+        c,
+        recipe.title,
+        bold,
+        width - 40 * mm,
+        (22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12),
+        3,
+    )
+    if title_overflow:
         overflows.append("title")
         title_lines = title_lines[:3]
     y = height - 40 * mm
-    c.setFont(bold, 22)
+    c.setFont(bold, title_size)
+    title_leading = max(title_size * 1.2, 6 * mm)
     for line in title_lines:
         c.drawString(18 * mm, y, line)
-        y -= 9 * mm
+        y -= title_leading
+
     if recipe.subtitle:
-        y, over = _draw_paragraph(c, recipe.subtitle, 18 * mm, y - 2 * mm, width - 36 * mm, regular, 11, 14, max_lines=2)
+        y, over = _draw_fitted_paragraph(
+            c,
+            recipe.subtitle,
+            18 * mm,
+            y - 2 * mm,
+            width - 36 * mm,
+            regular,
+            (11, 10.5, 10, 9.5, 9),
+            2,
+        )
         if over:
             overflows.append("subtitle")
     meta = "  ·  ".join(
@@ -167,7 +245,16 @@ def render_card(
     c.drawString(18 * mm, y - 4 * mm, meta[:120])
     y = y - 12 * mm
     if recipe.hook:
-        y, over = _draw_paragraph(c, recipe.hook, 18 * mm, y, width - 36 * mm, regular, 10, 13, max_lines=3)
+        y, over = _draw_fitted_paragraph(
+            c,
+            recipe.hook,
+            18 * mm,
+            y,
+            width - 36 * mm,
+            regular,
+            (10, 9.5, 9, 8.5, 8),
+            3,
+        )
         if over:
             overflows.append("hook")
 
@@ -220,13 +307,31 @@ def render_card(
     c.drawString(18 * mm, y_left, "BUY")
     y_left -= 6 * mm
     c.setFillColorRGB(*DARK)
+
+    ingredient_bottom = height - 110 * mm
+    ingredient_size, ingredient_leading, list_overflow = _ingredient_list_size(
+        c,
+        recipe,
+        font=regular,
+        width=85 * mm,
+        available_height=y_left - ingredient_bottom,
+    )
+    if list_overflow:
+        overflows.append("ingredient_lists")
+
     for item in recipe.buy:
-        y_left, over = _draw_paragraph(c, f"• {item}", 18 * mm, y_left, 85 * mm, regular, 9, 11, max_lines=2)
-        if over:
-            overflows.append(f"buy:{item[:24]}")
-        if y_left < height - 110 * mm:
-            overflows.append("buy_list")
-            break
+        y_left, _ = _draw_paragraph(
+            c,
+            f"• {item}",
+            18 * mm,
+            y_left,
+            85 * mm,
+            regular,
+            ingredient_size,
+            ingredient_leading,
+            max_lines=None,
+        )
+
     if recipe.pantry:
         c.setFont(bold, 10)
         c.setFillColorRGB(*GREEN)
@@ -234,16 +339,33 @@ def render_card(
         y_left -= 8 * mm
         c.setFillColorRGB(*DARK)
         for item in recipe.pantry:
-            y_left, over = _draw_paragraph(c, f"• {item}", 18 * mm, y_left, 85 * mm, regular, 9, 11, max_lines=2)
-            if over:
-                overflows.append(f"pantry:{item[:24]}")
-            if y_left < height - 110 * mm:
-                overflows.append("pantry_list")
-                break
+            y_left, _ = _draw_paragraph(
+                c,
+                f"• {item}",
+                18 * mm,
+                y_left,
+                85 * mm,
+                regular,
+                ingredient_size,
+                ingredient_leading,
+                max_lines=None,
+            )
+
+    if y_left < ingredient_bottom:
+        overflows.append("ingredient_lists")
 
     y_right = height - 26 * mm
     note = f"Allergens: {recipe.allergens}\n\nNutrition: {recipe.nutrition_display or recipe.nutrition}"
-    y_right, over = _draw_paragraph(c, note, 115 * mm, y_right, 75 * mm, regular, 9, 11, max_lines=12)
+    y_right, over = _draw_fitted_paragraph(
+        c,
+        note,
+        115 * mm,
+        y_right,
+        75 * mm,
+        regular,
+        (9, 8.5, 8, 7.5, 7),
+        12,
+    )
     if over:
         overflows.append("notes")
 
@@ -264,16 +386,15 @@ def render_card(
         c.setFillColorRGB(*DARK)
         c.setFont(bold, 9)
         c.drawString(x + 10 * mm, y - 7 * mm, stage.heading[:40])
-        _, over = _draw_paragraph(
+        _, over = _draw_fitted_paragraph(
             c,
             stage.directions,
             x + 3 * mm,
             y - 13 * mm,
             panel_w - 6 * mm,
             regular,
-            8.5,
-            10.5,
-            max_lines=5,
+            (8.5, 8, 7.5, 7, 6.5),
+            5,
         )
         if over:
             overflows.append(f"method_{idx + 1}")
