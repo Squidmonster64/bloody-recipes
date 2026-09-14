@@ -16,7 +16,7 @@ AU_REPLACEMENTS = [
     (re.compile(r"\bground beef\b", re.I), "beef mince"),
     (re.compile(r"\ball-purpose flour\b", re.I), "plain flour"),
     (re.compile(r"\bconfectioners'? sugar\b", re.I), "icing sugar"),
-    (re.compile(r"\bzucchini\b", re.I), "zucchini"),  # AU also uses zucchini
+    (re.compile(r"\bzucchini\b", re.I), "zucchini"),
     (re.compile(r"\bfahrenheit\b", re.I), "Celsius"),
 ]
 
@@ -26,12 +26,27 @@ MATERIAL_HINTS = re.compile(
     re.I,
 )
 
+INTERMEDIATE_SHOPPING_ITEM = re.compile(
+    r"\b(?:shredded|pulled|slow[- ]cooked|braised)\b"
+    r".*\b(?:beef|pork|chicken|lamb)\b"
+    r".*\b(?:with|in)\b"
+    r".*\b(?:sauce|gravy|jus)\b",
+    re.I,
+)
+
+PROTEIN_FALLBACKS = {
+    "beef": "beef suitable for slow cooking",
+    "pork": "pork suitable for slow cooking",
+    "chicken": "chicken",
+    "lamb": "lamb suitable for slow cooking",
+}
+
 
 def australianise_text(text: str) -> str:
     out = text
     for pattern, repl in AU_REPLACEMENTS:
         out = pattern.sub(repl, out)
-    # F to C for common oven temps: 350°F -> 180°C
+
     def _f_to_c(match: re.Match[str]) -> str:
         f = int(match.group(1))
         c = int(round((f - 32) * 5 / 9 / 5.0) * 5)
@@ -46,6 +61,104 @@ def is_material_adaptation(instructions: str, notes: list[str] | None = None) ->
     return bool(MATERIAL_HINTS.search(blob))
 
 
+def _looks_like_intermediate_shopping_item(item: str) -> bool:
+    """True when a shopping line is a cooked recipe component, not a grocery item."""
+    return bool(INTERMEDIATE_SHOPPING_ITEM.search(item or ""))
+
+
+def _fallback_retail_item(item: str, source_ingredients: list[str]) -> str:
+    """Replace a suspect cooked component with a source-backed retail ingredient."""
+    lower = item.lower()
+    for protein, generic in PROTEIN_FALLBACKS.items():
+        if protein not in lower:
+            continue
+        for source_item in source_ingredients:
+            candidate = australianise_text(source_item).strip()
+            if protein in candidate.lower() and not _looks_like_intermediate_shopping_item(candidate):
+                return candidate
+        return generic
+    return item
+
+
+def _repair_shopping_lists(
+    client: Any,
+    source: SourceFacts,
+    instructions: str,
+    buy: list[str],
+    pantry: list[str],
+) -> tuple[list[str], list[str]]:
+    """Repair non-retail shopping lines without changing the rest of the recipe."""
+    if not any(_looks_like_intermediate_shopping_item(i) for i in [*buy, *pantry]):
+        return buy, pantry
+
+    repair_payload = {
+        "source_ingredients": source.ingredients,
+        "requested_adaptations": instructions,
+        "current_buy": buy,
+        "current_pantry": pantry,
+        "rules": [
+            "Every BUY/PANTRY line must be an actual retail-purchasable ingredient or packaged product.",
+            "Never use a cooked or assembled recipe component as a grocery item.",
+            "For example, 'shredded beef with sauce' is invalid.",
+            "If a cooked component is needed, decompose it into source-backed or adaptation-backed ingredients.",
+            "Do not invent a brand, retailer product name, quantity, or ingredient unsupported by the source/adaptation.",
+            "Use Australian supermarket language.",
+        ],
+    }
+
+    try:
+        completion = client.chat.completions.create(
+            model=settings.recipe_text_model,
+            response_format={"type": "json_object"},
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Repair only the grocery shopping lists for an Australian recipe. "
+                        "Return JSON with exactly two keys: buy and pantry. "
+                        "Each value must be an array of strings. "
+                        "Items must be things a shopper can actually buy, not cooked recipe components."
+                    ),
+                },
+                {"role": "user", "content": json.dumps(repair_payload)},
+            ],
+        )
+        repaired = json.loads(completion.choices[0].message.content or "{}")
+        repaired_buy = [
+            australianise_text(str(i)).strip()
+            for i in repaired.get("buy", [])
+            if str(i).strip()
+        ]
+        repaired_pantry = [
+            australianise_text(str(i)).strip()
+            for i in repaired.get("pantry", [])
+            if str(i).strip()
+        ]
+        if repaired_buy or repaired_pantry:
+            if not any(
+                _looks_like_intermediate_shopping_item(i)
+                for i in [*repaired_buy, *repaired_pantry]
+            ):
+                return repaired_buy, repaired_pantry
+    except Exception:
+        pass
+
+    source_ingredients = [australianise_text(i) for i in source.ingredients]
+    clean_buy = [
+        _fallback_retail_item(i, source_ingredients)
+        if _looks_like_intermediate_shopping_item(i)
+        else i
+        for i in buy
+    ]
+    clean_pantry = [
+        _fallback_retail_item(i, source_ingredients)
+        if _looks_like_intermediate_shopping_item(i)
+        else i
+        for i in pantry
+    ]
+    return clean_buy, clean_pantry
+
+
 def _split_or_combine_steps(steps: list[str]) -> list[MethodStage]:
     cleaned = [re.sub(r"^\d+[\).\s]+", "", s).strip() for s in steps if str(s).strip()]
     if not cleaned:
@@ -58,7 +171,6 @@ def _split_or_combine_steps(steps: list[str]) -> list[MethodStage]:
             "Plate and serve.",
         ]
     while len(cleaned) < 6:
-        # Split the longest remaining compound step on sentence boundaries.
         idx = max(range(len(cleaned)), key=lambda i: len(cleaned[i]))
         parts = re.split(r"(?<=[.!?])\s+", cleaned[idx])
         if len(parts) >= 2:
@@ -67,7 +179,6 @@ def _split_or_combine_steps(steps: list[str]) -> list[MethodStage]:
             cleaned.append(cleaned[idx])
         cleaned = [c for c in cleaned if c]
     while len(cleaned) > 6:
-        # Combine shortest adjacent pair.
         pair_lengths = [(len(cleaned[i]) + len(cleaned[i + 1]), i) for i in range(len(cleaned) - 1)]
         _, i = min(pair_lengths)
         cleaned[i] = f"{cleaned[i]} {cleaned[i + 1]}".strip()
@@ -107,11 +218,11 @@ def _guess_protein(ingredients: list[str], category: str = "") -> str:
 def deterministic_normalise(source: SourceFacts, instructions: str) -> RecipeDraft:
     ingredients = [australianise_text(i) for i in (source.ingredients or [])]
     if not ingredients and source.raw_excerpt:
-        # Heuristic lines that look like ingredients.
         for line in source.raw_excerpt.splitlines():
             if re.match(r"^[\d½¼¾]", line.strip()) or re.search(r"\b(g|ml|tsp|tbsp|cup)\b", line, re.I):
                 ingredients.append(australianise_text(line.strip()))
         ingredients = ingredients[:30]
+
     pantry_words = ("oil", "salt", "pepper", "sugar", "butter", "flour", "water", "vinegar")
     buy, pantry = [], []
     for item in ingredients:
@@ -121,6 +232,7 @@ def deterministic_normalise(source: SourceFacts, instructions: str) -> RecipeDra
             buy.append(item)
     if not buy and ingredients:
         buy = ingredients
+
     method = _split_or_combine_steps(source.instructions or [])
     material = is_material_adaptation(instructions)
     nutrition = source.nutrition_text or "Nutrition not supplied for this adapted version"
@@ -128,9 +240,11 @@ def deterministic_normalise(source: SourceFacts, instructions: str) -> RecipeDra
     if material or not source.nutrition_text:
         nutrition = "Nutrition not supplied for this adapted version"
         nutrition_basis = "not_supplied_after_adaptation" if material else "not_supplied"
+
     title = australianise_text(source.title or "Bloody Dave Recipe")
     publisher = source.publisher or "Unknown source"
     quote = f"Keep the {title.split()[0].lower()} honest and don't rush the finish."
+
     return RecipeDraft(
         title=title[:160],
         subtitle=australianise_text((source.category or source.cuisine or title)[:220]),
@@ -183,6 +297,8 @@ def ai_normalise(source: SourceFacts, instructions: str) -> RecipeDraft:
                 "exactly_six_method_stages": True,
                 "no_fabricated_nutrition_as_source": True,
                 "retailer_language_generic": True,
+                "shopping_items_must_be_retail_purchasable": True,
+                "no_cooked_or_assembled_components_in_buy_or_pantry": True,
                 "rewrite_concise_bloody_dave_prose": True,
             },
         }
@@ -198,6 +314,10 @@ def ai_normalise(source: SourceFacts, instructions: str) -> RecipeDraft:
                             "Return only structured data matching the schema. "
                             "Preserve factual quantities, temperatures, timings and food-safety cues. "
                             "Rewrite method prose concisely. Use Australian kitchen language. "
+                            "BUY and PANTRY must contain only actual supermarket ingredients/products "
+                            "a shopper can put in a trolley, never cooked or assembled recipe components. "
+                            "For example, 'shredded beef with sauce' is invalid; list the actual beef cut "
+                            "and sauce ingredients supported by the source/adaptation instead. "
                             "Do not invent source nutrition. Exactly six method stages."
                         ),
                     },
@@ -214,8 +334,9 @@ def ai_normalise(source: SourceFacts, instructions: str) -> RecipeDraft:
                     {
                         "role": "system",
                         "content": (
-                            "Return JSON for a Bloody Dave recipe with keys matching "
-                            "NormalisedAIRecipe and exactly six method stages."
+                            "Return JSON for a Bloody Dave recipe with keys matching NormalisedAIRecipe "
+                            "and exactly six method stages. BUY and PANTRY must contain only actual "
+                            "retail-purchasable ingredients, never cooked or assembled recipe components."
                         ),
                     },
                     {"role": "user", "content": json.dumps(payload)},
@@ -232,6 +353,11 @@ def ai_normalise(source: SourceFacts, instructions: str) -> RecipeDraft:
             nutrition_basis = "not_supplied_after_adaptation" if material else "not_supplied"
         else:
             nutrition_basis = "source_retained"
+
+        buy = [australianise_text(i) for i in parsed.buy]
+        pantry = [australianise_text(i) for i in parsed.pantry]
+        buy, pantry = _repair_shopping_lists(client, source, instructions, buy, pantry)
+
         return RecipeDraft(
             title=australianise_text(parsed.title),
             subtitle=australianise_text(parsed.subtitle),
@@ -246,8 +372,8 @@ def ai_normalise(source: SourceFacts, instructions: str) -> RecipeDraft:
             protein=parsed.protein,
             difficulty=parsed.difficulty,
             tags=[australianise_text(t) for t in parsed.tags],
-            buy=[australianise_text(i) for i in parsed.buy],
-            pantry=[australianise_text(i) for i in parsed.pantry],
+            buy=buy,
+            pantry=pantry,
             method=[
                 MethodStage(
                     heading=australianise_text(s.heading),
@@ -271,7 +397,6 @@ def ai_normalise(source: SourceFacts, instructions: str) -> RecipeDraft:
             or parsed.adaptation_notes,
         )
     except Exception:
-        # Bounded resilience: fall back to deterministic normalisation rather than crashing the job.
         return deterministic_normalise(source, instructions)
 
 
