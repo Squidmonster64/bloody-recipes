@@ -1,0 +1,5 @@
+import { z } from 'zod';
+const text=(n:number)=>z.string().max(n);
+export const recipeSchema=z.object({
+ title:text(160).min(1),subtitle:text(220).default(''),hook:text(400).default(''),source:text(120).min(1),source_url:text(2000).min(1),serves:text(40),prep_time:text(40).default(''),cook_time:text(40).default(''),total_time:text(40).default(''),cuisine:text(80).default(''),protein:text(80).default(''),tags:z.array(text(80)).max(30).default([]),buy:z.array(text(250)).min(1).max(60),pantry:z.array(text(250)).max(40).default([]),method:z.array(z.object({heading:text(80).min(1),directions:text(1200).min(1)})).length(6),allergens:text(400).default('Check current product labels.'),nutrition:text(1000).default('Nutrition not supplied'),nutrition_basis:z.enum(['source_retained','not_supplied','not_supplied_after_adaptation']).default('not_supplied'),hero_image_subject:text(400).default(''),bloody_dave_quote:text(180).default(''),source_credit:text(160).default(''),requested_adaptations:z.array(text(4000)).default([]),hero_image:text(2000).optional(),card_pdf:text(2000).optional(),id:text(100).optional()
+});
